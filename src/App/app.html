@@ -1,6 +1,8 @@
 <div>
-    <p out="users[0]" >{fname} {lname}</p>
-    <p out="users[1]">{fname} {lname}</p>
-    <comp-child></comp-child>
-    <button id="btn-test" clickhandler="handleButtonClick">OK</button>
+    <p out="message"></p>
+    <form>
+        <input type="text" in="loginInfo.username"/><br/>
+        <input type="password" in="loginInfo.password"/><br/>
+    </form>
+    <button click="handleLogin">Login</button>
 </div>

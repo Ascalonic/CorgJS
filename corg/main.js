@@ -16,28 +16,43 @@ App.prototype.init = function() {
         this.components = [];
     }
     this.events = [];
+    this.postevents = [];
+}
+
+App.prototype.reRender = function() {
+
+    var temp = document.activeElement;
+    console.log(temp);
+
+    this.root.innerHTML = '';
+    this.events = [];
+
+    for(var i=0;i<this.postevents.length;i++) {
+        this.postevents[i].action(this.postevents[i].data);
+    }
+
+    this.postevents = [];
+
+    this.renderComponent('comp-app');
 }
 
 //Iterate a model object and return the element pointed to by "path"
 App.prototype.iterateStaticModel = function(model, path) {
     
-    var var_segs = path.split('.'); var model_ptr = model; 
-    for(var j=0;j<var_segs.length;j++) {
-
-        //Array element
-        if(/[A-Za-z0-9]*\[[0-9]+\]$/.test(var_segs[j])) {
-            var var_strip = var_segs[j].substring(0, var_segs[j].indexOf('['));
-            model_ptr = model_ptr[var_strip];
-            model_ptr = model_ptr[parseInt(var_segs[j].
-                substring(var_segs[j].indexOf('[') + 1, 
-            var_segs[j].indexOf(']')))];
-        }
-        else {
-            model_ptr = model_ptr[var_segs[j]];
-        }
+    var stack = path.split('.');  
+    while(stack.length>1){
+        model = model[stack.shift()];
     }
+    return model[stack.shift()];
+}
 
-    return model_ptr;
+//Iterate object and update a node
+App.prototype.updateObject = function(object, newValue, path){
+    var stack = path.split('.');  
+    while(stack.length>1){
+      object = object[stack.shift()];
+    }
+    object[stack.shift()] = newValue;
 }
 
 //Validate a view against its model
@@ -122,6 +137,21 @@ App.prototype.renderComponent = function(comp_name) {
 
         if(all[i].getAttribute('in') != null) {
             data_attrib = all[i].getAttribute('in');
+            all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
+
+            //Bind onchange event to the element to reflect in model
+            this.events.push({ handler: function(_this, value) {
+                                            _this.update(_this.model, value, _this.path);
+                                        },
+                                data: {
+                                    path: data_attrib,
+                                    model: component.model,
+                                    update: this.updateObject
+                                },
+                                type: "change"
+                            });
+            all[i].setAttribute("changeevt", this.events.length - 1);
+
         }
         if(all[i].getAttribute('out') != null) { 
 
@@ -142,13 +172,24 @@ App.prototype.renderComponent = function(comp_name) {
         if(all[i].getAttribute('inout') != null) //two-way binding
             data_attrib = all[i].getAttribute('inout'); 
 
-        //Event Binding - onclick
-        if(all[i].getAttribute('clickhandler') != null) {
-            var clickhandler = all[i].getAttribute('clickhandler');
+        //Event Binding - click
+        if(all[i].getAttribute('click') != null) {
+            var clickhandler = all[i].getAttribute('click');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
-                                data: component.model
+                                data: component.model,
+                                type: "click"
                             });
-            all[i].setAttribute("bindevent", this.events.length - 1);
+            all[i].setAttribute("clickevt", this.events.length - 1);
+        }
+
+        //Event Binding - change
+        if(all[i].getAttribute('change') != null) {
+            var clickhandler = all[i].getAttribute('change');
+            this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
+                                data: component.model,
+                                type: "change"
+                            });
+            all[i].setAttribute("changeevt", this.events.length - 1);
         }
     }
  
@@ -164,15 +205,44 @@ App.prototype.renderComponent = function(comp_name) {
     component.html = comp_html.outerHTML;
 
     if(component.isRoot) {
-        //Bind events based on bindevent props
+        //Bind events based on clickevt props
         var _this = this;
-        document.body.addEventListener('click', function(event) {
-            if(event.srcElement.getAttribute("bindevent") != null) {
-                _this.events[parseInt(event.srcElement.getAttribute("bindevent"))].handler(
-                    _this.events[parseInt(event.srcElement.getAttribute("bindevent"))].data
+
+        var clickhandlerfn = function(event) {
+            if(event.srcElement.getAttribute("clickevt") != null) {
+                _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].handler(
+                    _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data
                 );
+                _this.reRender();
             }
+        };
+
+        var changehandlerfn = function(event) {
+            if(event.srcElement.getAttribute("changeevt") != null) {
+                _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].handler(
+                    _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].data,
+                    event.srcElement.value
+                );
+                _this.reRender();
+            }
+        };
+
+        this.postevents.push({
+            action: function(data) {
+                document.body.removeEventListener('click', data);
+            },
+            data: clickhandlerfn
         });
+
+        this.postevents.push({
+            action: function(data) {
+                document.body.removeEventListener('change', data);
+            },
+            data: changehandlerfn
+        });
+
+        document.body.addEventListener('click', clickhandlerfn);
+        document.body.addEventListener('change', changehandlerfn);
 
         this.root.innerHTML = component.html;
     }

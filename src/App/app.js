@@ -1,18 +1,16 @@
 class App {
     constructor() {
-        this.users = [
-            {
-                fname: "ABC",
-                lname: "XYZ"
-            },
-            {
-                fname: "123",
-                lname: "PQR"
-            }
-        ];
+        this.loginInfo = {
+            username: "",
+            password: ""
+        }
+        this.message = "Login";
     }
 
-    handleButtonClick() {
-        console.log(this.users);
+    handleLogin() {
+        console.log("Login");
+        console.log(this.loginInfo);
+
+        this.message = "Login Initiated";
     }
 }
