@@ -11,7 +11,7 @@ class App {
         this.users.push({
             fname: this.fname,
             lname: this.lname
-        })
+        });
     }
 
     handleElemClick() {

@@ -35,24 +35,42 @@ App.prototype.reRender = function() {
 }
 
 //Update the app to reflect model changes
-App.prototype.updateApp = function() {
+App.prototype.updateApp = function(compname) {
 
-    var component = this.components.filter(comp => 
-        comp.name == 'comp-app')[0];
+    var all = this.root.getElementsByTagName("*");;
 
-    var all = this.root.getElementsByTagName("*");
+    var postupdate = [];
+
+    if(compname == null) {
+        var component = this.components.filter(comp => 
+            comp.name == 'comp-app')[0];
+    }
+    else {
+        var component = this.components.filter(comp => 
+            comp.name == compname)[0];
+
+        console.log(component.rendered);
+        var all = component.rendered.getElementsByTagName("*");
+    }
 
     for(var i=0;i<all.length;i++) {
 
-        if(all[i].getAttribute('in') != null) {
+        if(all[i].getAttribute('comp') != null) {
+            postupdate.push(all[i].getAttribute('comp'));
+        }
+        else if(all[i].getAttribute('in') != null) {
             data_attrib = all[i].getAttribute('in');
             all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
         }
-        if(all[i].getAttribute('out') != null) { 
+        else if(all[i].getAttribute('out') != null) {
 
             data_attrib = all[i].getAttribute('out');
 
             var modelvalue = this.iterateStaticModel(component.model, data_attrib);
+
+            console.log(component.model);
+            console.log(data_attrib);
+            console.log(modelvalue);
 
             if(!Array.isArray(modelvalue)) {
                 var inner_html = this.renderTemplate(all[i].innerHTML,
@@ -99,11 +117,16 @@ App.prototype.updateApp = function() {
                             element.setAttribute("clickevt", this.events.length - 1);
                         }
                     });
-                    
+
                     all[i].appendChild(curnode);
                 });
             }
         }
+
+        postupdate.forEach(element => {
+            console.log(element);
+            this.updateApp(element);
+        });
     }
 }
 
@@ -202,6 +225,7 @@ App.prototype.renderComponent = function(comp_name) {
     }
 
     var comp_html = new DOMHelper().createElementFromHTML(component.html);
+    component.rendered = comp_html;
 
     var all = comp_html.getElementsByTagName("*");
     for(var i=0;i<all.length;i++) {
@@ -250,6 +274,7 @@ App.prototype.renderComponent = function(comp_name) {
                 var child = children[0];
                 if(children.length > 1) {
                     var super_child = document.createElement('div');
+                    console.log(children);
                     children.forEach(element => {
                         super_child.appendChild(element);
                     });
@@ -296,7 +321,6 @@ App.prototype.renderComponent = function(comp_name) {
 
         //Event Binding - click
         if(all[i].getAttribute('click') != null) {
-            console.log(all[i]);
             var clickhandler = all[i].getAttribute('click');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                 data: component.model,
@@ -322,8 +346,13 @@ App.prototype.renderComponent = function(comp_name) {
     let dom_helper = new DOMHelper();
     for(var i=0;i<child_comps.length;i++) {
         if(child_comps[i].tagName.toLowerCase().indexOf('comp-') == 0) {
-            child_comps[i].parentNode.replaceChild(dom_helper.createElementFromHTML
-                (this.renderComponent(child_comps[i].tagName.toLowerCase())), child_comps[i]);
+
+            var new_child = dom_helper.createElementFromHTML
+            (this.renderComponent(child_comps[i].tagName.toLowerCase()));
+
+            new_child.setAttribute('comp', child_comps[i].tagName.toLowerCase());
+
+            child_comps[i].parentNode.replaceChild(new_child, child_comps[i]);
         }
     }
     
@@ -335,7 +364,6 @@ App.prototype.renderComponent = function(comp_name) {
 
         var clickhandlerfn = function(event) {
             if(event.srcElement.getAttribute("clickevt") != null) {
-                console.log(_this.events[parseInt(event.srcElement.getAttribute("clickevt"))]);
                 _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].handler(
                     _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data, 
                     _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].my,
@@ -393,9 +421,14 @@ DOMHelper.prototype.createElementFromHTML = function(html) {
 }
 
 let app = new App();app.addComponent('comp-child', `<div>
-    <p click="handleChildClick">Click me</p>
-</div>`, {handleChildClick: function(_this, my){
-        console.log('hello');
+    <ul out="arr">
+        <li click="handleChildClick">{name}</li>
+    </ul>
+</div>`, {arr:[
+            {name: "XYZ"},
+            {name: "123"}
+        ],handleChildClick: function(_this, my){
+        console.log(my.name);
     },}, false);app.addComponent('comp-app', `<div>
     <ul out="users">
         <li click="handleElemClick">{fname} {lname}</li>
@@ -412,7 +445,7 @@ let app = new App();app.addComponent('comp-child', `<div>
         _this.users.push({
             fname: _this.fname,
             lname: _this.lname
-        })
+        });
     },handleElemClick: function(_this, my){
         console.log(_this);
         alert(my.fname + ' ' + my.lname);
