@@ -57,6 +57,30 @@ as
 
 `Hello, World`
 
+More flexible and powerful component rendering is also possible
+
+```
+<p out="user">{lname}, {fname}</p>
+```
+
+```
+class App
+{
+  constructor() {
+    this.user = {
+      fname: "Varghese",
+      lname: "Mathai"
+    };
+  }
+}
+```
+
+will render as: 
+
+`Mathai, Varghese`
+
+By plugging in the model object
+
 ## Source Code
 
 Backbone of Corg are the two following files:
