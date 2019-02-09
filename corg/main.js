@@ -17,12 +17,14 @@ App.prototype.init = function() {
     }
     this.events = [];
     this.postevents = [];
+    this.looptemplates = [];
 }
 
 App.prototype.reRender = function() {
 
     this.root.innerHTML = '';
     this.events = [];
+    this.looptemplates = [];
 
     for(var i=0;i<this.postevents.length;i++) {
         this.postevents[i].action(this.postevents[i].data);
@@ -50,15 +52,37 @@ App.prototype.updateApp = function() {
 
             data_attrib = all[i].getAttribute('out');
 
-            var inner_html = this.renderTemplate(all[i].innerHTML,
-                this.iterateStaticModel(component.model, data_attrib));
+            var modelvalue = this.iterateStaticModel(component.model, data_attrib);
 
-            if(inner_html === all[i].innerHTML) {
-                all[i].innerHTML = 
-                this.iterateStaticModel(component.model, data_attrib);
+            if(!Array.isArray(modelvalue)) {
+                var inner_html = this.renderTemplate(all[i].innerHTML,
+                    this.iterateStaticModel(component.model, data_attrib));
+    
+                if(inner_html === all[i].innerHTML) {
+                    all[i].innerHTML = 
+                    this.iterateStaticModel(component.model, data_attrib);
+                }
+                else {
+                    all[i].innerHTML = inner_html;
+                }
             }
             else {
-                all[i].innerHTML = inner_html;
+
+                //1. Get the child template from looptemplates
+                var ltid = parseInt(all[i].getAttribute('ltid'));
+                var child = this.looptemplates[ltid];
+
+                //2. Remove the existing children
+                all[i].innerHTML = '';
+
+                //3. Loop over the model elements and create children
+                modelvalue.forEach(element => {
+                    var curnode = child.cloneNode(true);
+                    //4. Render the child
+                    curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
+
+                    all[i].appendChild(curnode);
+                });
             }
         }
     }
@@ -212,13 +236,17 @@ App.prototype.renderComponent = function(comp_name) {
                     child = super_child;
                 }
 
-                //2. Remove the existing children
+                //2. Copy the child template for later use (component updation)
+                this.looptemplates.push(child);
+                all[i].setAttribute('ltid', (this.looptemplates.length - 1).toString());
+
+                //3. Remove the existing children
                 all[i].innerHTML = '';
 
-                //3. Loop over the model elements and create children
+                //4. Loop over the model elements and create children
                 modelvalue.forEach(element => {
                     var curnode = child.cloneNode(true);
-                    //4. Render the child
+                    //5. Render the child
                     curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
 
                     all[i].appendChild(curnode);
