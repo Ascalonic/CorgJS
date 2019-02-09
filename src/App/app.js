@@ -1,16 +1,14 @@
 class App {
     constructor() {
-        this.loginInfo = {
-            username: "",
-            password: ""
-        }
-        this.message = "Login";
+        this.users = [];
+        this.fname = "";
+        this.lname = "";
     }
 
-    handleLogin() {
-        console.log("Login");
-        console.log(this.loginInfo);
-
-        this.message = "Login Initiated";
+    handleAdd() {
+        this.users.push({
+            fname: this.fname,
+            lname: this.lname
+        })
     }
 }

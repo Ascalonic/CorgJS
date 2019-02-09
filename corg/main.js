@@ -185,17 +185,45 @@ App.prototype.renderComponent = function(comp_name) {
 
             data_attrib = all[i].getAttribute('out');
 
-            var inner_html = this.renderTemplate(all[i].innerHTML,
-                this.iterateStaticModel(component.model, data_attrib));
+            var modelvalue = this.iterateStaticModel(component.model, data_attrib);
 
-            if(inner_html === all[i].innerHTML) {
-                all[i].innerHTML = 
-                this.iterateStaticModel(component.model, data_attrib);
+            if(!Array.isArray(modelvalue)) {
+                var inner_html = this.renderTemplate(all[i].innerHTML,
+                    this.iterateStaticModel(component.model, data_attrib));
+    
+                if(inner_html === all[i].innerHTML) {
+                    all[i].innerHTML = 
+                    this.iterateStaticModel(component.model, data_attrib);
+                }
+                else {
+                    all[i].innerHTML = inner_html;
+                }
             }
             else {
-                all[i].innerHTML = inner_html;
-            }
+                //loop over elements and create new nodes
+                //1. Child node to repeat -> child
+                var children = all[i].getElementsByTagName("*");
+                var child = children[0];
+                if(children.length > 1) {
+                    var super_child = document.createElement('div');
+                    children.forEach(element => {
+                        super_child.appendChild(element);
+                    });
+                    child = super_child;
+                }
 
+                //2. Remove the existing children
+                all[i].innerHTML = '';
+
+                //3. Loop over the model elements and create children
+                modelvalue.forEach(element => {
+                    var curnode = child.cloneNode(true);
+                    //4. Render the child
+                    curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
+
+                    all[i].appendChild(curnode);
+                });
+            }
         }
         if(all[i].getAttribute('inout') != null) //two-way binding
             data_attrib = all[i].getAttribute('inout'); 

@@ -1,8 +1,9 @@
 <div>
-    <p out="message"></p>
-    <form>
-        <input type="text" in="loginInfo.username"/><br/>
-        <input type="password" in="loginInfo.password"/><br/>
-    </form>
-    <button click="handleLogin">Login</button>
+    <ul out="users">
+        <li>{fname} {lname}</li>
+    </ul>
+
+    <input in="fname" type="text"/>
+    <input in="lname" type="text"/>
+    <button click="handleAdd">Add</button>
 </div>

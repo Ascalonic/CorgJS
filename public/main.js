@@ -21,9 +21,6 @@ App.prototype.init = function() {
 
 App.prototype.reRender = function() {
 
-    var temp = document.activeElement;
-    console.log(temp);
-
     this.root.innerHTML = '';
     this.events = [];
 
@@ -32,13 +29,44 @@ App.prototype.reRender = function() {
     }
 
     this.postevents = [];
-
     this.renderComponent('comp-app');
+}
+
+//Update the app to reflect model changes
+App.prototype.updateApp = function() {
+
+    var component = this.components.filter(comp => 
+        comp.name == 'comp-app')[0];
+
+    var all = this.root.getElementsByTagName("*");
+
+    for(var i=0;i<all.length;i++) {
+
+        if(all[i].getAttribute('in') != null) {
+            data_attrib = all[i].getAttribute('in');
+            all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
+        }
+        if(all[i].getAttribute('out') != null) { 
+
+            data_attrib = all[i].getAttribute('out');
+
+            var inner_html = this.renderTemplate(all[i].innerHTML,
+                this.iterateStaticModel(component.model, data_attrib));
+
+            if(inner_html === all[i].innerHTML) {
+                all[i].innerHTML = 
+                this.iterateStaticModel(component.model, data_attrib);
+            }
+            else {
+                all[i].innerHTML = inner_html;
+            }
+        }
+    }
 }
 
 //Iterate a model object and return the element pointed to by "path"
 App.prototype.iterateStaticModel = function(model, path) {
-    
+
     var stack = path.split('.');  
     while(stack.length>1){
         model = model[stack.shift()];
@@ -157,17 +185,46 @@ App.prototype.renderComponent = function(comp_name) {
 
             data_attrib = all[i].getAttribute('out');
 
-            var inner_html = this.renderTemplate(all[i].innerHTML,
-                this.iterateStaticModel(component.model, data_attrib));
+            var modelvalue = this.iterateStaticModel(component.model, data_attrib);
 
-            if(inner_html === all[i].innerHTML) {
-                all[i].innerHTML = 
-                this.iterateStaticModel(component.model, data_attrib);
+            if(!Array.isArray(modelvalue)) {
+                var inner_html = this.renderTemplate(all[i].innerHTML,
+                    this.iterateStaticModel(component.model, data_attrib));
+    
+                if(inner_html === all[i].innerHTML) {
+                    all[i].innerHTML = 
+                    this.iterateStaticModel(component.model, data_attrib);
+                }
+                else {
+                    all[i].innerHTML = inner_html;
+                }
             }
             else {
-                all[i].innerHTML = inner_html;
-            }
+                //loop over elements and create new nodes
+                //1. Child node to repeat -> child
+                var children = all[i].getElementsByTagName("*");
+                var child = children[0];
+                if(children.length > 1) {
+                    var super_child = document.createElement('div');
+                    children.forEach(element => {
+                        super_child.appendChild(element);
+                    });
+                    child = super_child;
+                }
 
+                //2. Remove the existing children
+                all[i].innerHTML = '';
+
+                //3. Loop over the model elements and create children
+                modelvalue.forEach(element => {
+                    var curnode = child.cloneNode(true);
+
+                    //4. Render the child
+                    curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
+
+                    all[i].appendChild(curnode);
+                });
+            }
         }
         if(all[i].getAttribute('inout') != null) //two-way binding
             data_attrib = all[i].getAttribute('inout'); 
@@ -213,7 +270,7 @@ App.prototype.renderComponent = function(comp_name) {
                 _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].handler(
                     _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data
                 );
-                _this.reRender();
+                _this.updateApp();
             }
         };
 
@@ -223,7 +280,7 @@ App.prototype.renderComponent = function(comp_name) {
                     _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].data,
                     event.srcElement.value
                 );
-                _this.reRender();
+                _this.updateApp();
             }
         };
 
@@ -263,11 +320,17 @@ DOMHelper.prototype.createElementFromHTML = function(html) {
 }
 
 let app = new App();app.addComponent('comp-app', `<div>
-    <input type="number" in="a"/><br/>
-    <input type="number" in="b"/><br/>
-    <p out="result"></p>
+    <ul out="users">
+        <li>{fname} {lname}</li>
+    </ul>
 
-    <button click="handleSum">Sum</button>
-</div>`, {result:0,a:0,b:0,handleSum: function(_this){
-        _this.result = parseInt(_this.a) + parseInt(_this.b);
+    <input in="fname" type="text"/>
+    <input in="lname" type="text"/>
+    <button click="handleAdd">Add</button>
+</div>`, {users:[],fname:"",lname:"",handleAdd: function(_this){
+        console.log(_this.fname + ' ' + _this.lname);
+        _this.users.push({
+            fname: _this.fname,
+            lname: _this.lname
+        })
     },}, true);app.renderComponent('comp-app');
