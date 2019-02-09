@@ -263,18 +263,11 @@ DOMHelper.prototype.createElementFromHTML = function(html) {
 }
 
 let app = new App();app.addComponent('comp-app', `<div>
-    <p out="message"></p>
-    <form>
-        <input type="text" in="loginInfo.username"/><br/>
-        <input type="password" in="loginInfo.password"/><br/>
-    </form>
-    <button click="handleLogin">Login</button>
-</div>`, {loginInfo:{
-            username: "",
-            password: ""
-        },message:"Login",handleLogin: function(_this){
-        console.log("Login");
-        console.log(_this.loginInfo);
+    <input type="number" in="a"/><br/>
+    <input type="number" in="b"/><br/>
+    <p out="result"></p>
 
-        _this.message = "Login Initiated";
+    <button click="handleSum">Sum</button>
+</div>`, {result:0,a:0,b:0,handleSum: function(_this){
+        _this.result = parseInt(_this.a) + parseInt(_this.b);
     },}, true);app.renderComponent('comp-app');

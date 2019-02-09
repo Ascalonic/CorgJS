@@ -21,9 +21,6 @@ App.prototype.init = function() {
 
 App.prototype.reRender = function() {
 
-    var temp = document.activeElement;
-    console.log(temp);
-
     this.root.innerHTML = '';
     this.events = [];
 
@@ -32,13 +29,44 @@ App.prototype.reRender = function() {
     }
 
     this.postevents = [];
-
     this.renderComponent('comp-app');
+}
+
+//Update the app to reflect model changes
+App.prototype.updateApp = function() {
+
+    var component = this.components.filter(comp => 
+        comp.name == 'comp-app')[0];
+
+    var all = this.root.getElementsByTagName("*");
+
+    for(var i=0;i<all.length;i++) {
+
+        if(all[i].getAttribute('in') != null) {
+            data_attrib = all[i].getAttribute('in');
+            all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
+        }
+        if(all[i].getAttribute('out') != null) { 
+
+            data_attrib = all[i].getAttribute('out');
+
+            var inner_html = this.renderTemplate(all[i].innerHTML,
+                this.iterateStaticModel(component.model, data_attrib));
+
+            if(inner_html === all[i].innerHTML) {
+                all[i].innerHTML = 
+                this.iterateStaticModel(component.model, data_attrib);
+            }
+            else {
+                all[i].innerHTML = inner_html;
+            }
+        }
+    }
 }
 
 //Iterate a model object and return the element pointed to by "path"
 App.prototype.iterateStaticModel = function(model, path) {
-    
+
     var stack = path.split('.');  
     while(stack.length>1){
         model = model[stack.shift()];
@@ -213,7 +241,7 @@ App.prototype.renderComponent = function(comp_name) {
                 _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].handler(
                     _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data
                 );
-                _this.reRender();
+                _this.updateApp();
             }
         };
 
@@ -223,7 +251,7 @@ App.prototype.renderComponent = function(comp_name) {
                     _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].data,
                     event.srcElement.value
                 );
-                _this.reRender();
+                _this.updateApp();
             }
         };
 
