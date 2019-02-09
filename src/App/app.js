@@ -1,6 +1,8 @@
 class App {
     constructor() {
-        this.users = [];
+        this.users = [{
+            fname: "ABC", lname: "DEF"    
+        }];
         this.fname = "";
         this.lname = "";
     }
@@ -10,5 +12,10 @@ class App {
             fname: this.fname,
             lname: this.lname
         })
+    }
+
+    handleElemClick() {
+        console.log(this);
+        alert(my.fname + ' ' + my.lname);
     }
 }

@@ -57,7 +57,7 @@ module.exports = {
                                 });
                             }
                             else if(value.type == 'MethodDefinition') {
-                                model += value.key.name + ': function(_this';
+                                model += value.key.name + ': function(_this, my';
                                 var body = source.substring(value.value.body.range[0],
                                     value.value.body.range[1]);
                                 model = value.value.params.length > 0 ? model + ',' : model;

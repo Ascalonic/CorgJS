@@ -1,9 +1,11 @@
 <div>
     <ul out="users">
-        <li>{fname} {lname}</li>
+        <li click="handleElemClick">{fname} {lname}</li>
     </ul>
 
     <input in="fname" type="text"/>
     <input in="lname" type="text"/>
     <button click="handleAdd">Add</button>
+
+    <comp-child></comp-child>
 </div>

@@ -80,7 +80,26 @@ App.prototype.updateApp = function() {
                     var curnode = child.cloneNode(true);
                     //4. Render the child
                     curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
+                    
+                    var curnode_elems = curnode.getElementsByTagName("*");
+                    if(curnode_elems.length == 0) {
+                        curnode_elems = [curnode];
+                    }
 
+                    _element = element;
+                    curnode_elems.forEach(element => {
+                        //Event Binding - click
+                        if(element.getAttribute('click') != null) {
+                            var clickhandler = element.getAttribute('click');
+                            this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
+                                                data: component.model,
+                                                my: _element,
+                                                type: "click"
+                                            });
+                            element.setAttribute("clickevt", this.events.length - 1);
+                        }
+                    });
+                    
                     all[i].appendChild(curnode);
                 });
             }
@@ -192,7 +211,7 @@ App.prototype.renderComponent = function(comp_name) {
             all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
 
             //Bind onchange event to the element to reflect in model
-            this.events.push({ handler: function(_this, value) {
+            this.events.push({ handler: function(_this, my, value) {
                                             _this.update(_this.model, value, _this.path);
                                         },
                                 data: {
@@ -200,6 +219,7 @@ App.prototype.renderComponent = function(comp_name) {
                                     model: component.model,
                                     update: this.updateObject
                                 },
+                                my: null,
                                 type: "change"
                             });
             all[i].setAttribute("changeevt", this.events.length - 1);
@@ -249,6 +269,24 @@ App.prototype.renderComponent = function(comp_name) {
                     //5. Render the child
                     curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
 
+                    var _element = element;
+                    var curnode_elems = curnode.getElementsByTagName("*");
+                    if(curnode_elems.length == 0) {
+                        curnode_elems = [curnode];
+                    }
+                    curnode_elems.forEach(element => {
+                        //Event Binding - click
+                        if(element.getAttribute('click') != null) {
+                            var clickhandler = element.getAttribute('click');
+                            this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
+                                                data: component.model,
+                                                my: _element,
+                                                type: "click"
+                                            });
+                            element.setAttribute("clickevt", this.events.length - 1);
+                        }
+                    });
+                   
                     all[i].appendChild(curnode);
                 });
             }
@@ -261,6 +299,7 @@ App.prototype.renderComponent = function(comp_name) {
             var clickhandler = all[i].getAttribute('click');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                 data: component.model,
+                                my: null,
                                 type: "click"
                             });
             all[i].setAttribute("clickevt", this.events.length - 1);
@@ -271,6 +310,7 @@ App.prototype.renderComponent = function(comp_name) {
             var clickhandler = all[i].getAttribute('change');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                 data: component.model,
+                                my: null,
                                 type: "change"
                             });
             all[i].setAttribute("changeevt", this.events.length - 1);
@@ -295,7 +335,8 @@ App.prototype.renderComponent = function(comp_name) {
         var clickhandlerfn = function(event) {
             if(event.srcElement.getAttribute("clickevt") != null) {
                 _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].handler(
-                    _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data
+                    _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].data, 
+                    _this.events[parseInt(event.srcElement.getAttribute("clickevt"))].my,
                 );
                 _this.updateApp();
             }
@@ -305,6 +346,7 @@ App.prototype.renderComponent = function(comp_name) {
             if(event.srcElement.getAttribute("changeevt") != null) {
                 _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].handler(
                     _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].data,
+                    _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].my,
                     event.srcElement.value
                 );
                 _this.updateApp();
@@ -329,6 +371,8 @@ App.prototype.renderComponent = function(comp_name) {
         document.body.addEventListener('change', changehandlerfn);
 
         this.root.innerHTML = component.html;
+
+        this.updateApp();
     }
 
     return component.html;
