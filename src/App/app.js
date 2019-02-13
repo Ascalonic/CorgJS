@@ -1,10 +1,12 @@
 class App {
     constructor() {
         this.users = [{
-            fname: "ABC", lname: "DEF"    
+            fname: "ABC", lname: "DEF" 
         }];
         this.fname = "";
         this.lname = "";
+
+        this.loaded = true;
     }
 
     handleAdd() {
@@ -12,10 +14,15 @@ class App {
             fname: this.fname,
             lname: this.lname
         });
+        this.fname = ""; this.lname = "";
     }
 
     handleElemClick() {
-        console.log(this);
-        alert(my.fname + ' ' + my.lname);
+        this.loaded = false;
+        setTimeout(() => {
+            this.loaded = true;
+            //alert(my.fname + ' ' + my.lname);
+            app.updateApp();
+        }, 1000);
     }
 }

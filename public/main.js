@@ -15,16 +15,19 @@ App.prototype.init = function() {
         this.root = roots[0];
         this.components = [];
     }
-    this.events = [];
-    this.postevents = [];
-    this.looptemplates = [];
+    this.events = []; //to store events
+    this.postevents = []; //to store event unbinding functions
+    this.looptemplates = []; //to store templates for updating array elements
+    this.ap_elems = []; //to store the Attribute Plugged Elements (APEs)
 }
 
+//clear the app root and re-render all
 App.prototype.reRender = function() {
 
     this.root.innerHTML = '';
     this.events = [];
     this.looptemplates = [];
+    this.ap_elems = [];
 
     for(var i=0;i<this.postevents.length;i++) {
         this.postevents[i].action(this.postevents[i].data);
@@ -35,99 +38,155 @@ App.prototype.reRender = function() {
 }
 
 //Update the app to reflect model changes
-App.prototype.updateApp = function(compname) {
+App.prototype.updateApp = function(startroot, compname) {
 
-    var all = this.root.getElementsByTagName("*");;
-
-    var postupdate = [];
+    var root = startroot;
+    var component = null;
 
     if(compname == null) {
-        var component = this.components.filter(comp => 
-            comp.name == 'comp-app')[0];
+        compname = 'comp-app';
+
+        if(root == null) {
+            root = this.root;
+            component = this.components[this.components.length - 1];
+        }
     }
-    else {
-        var component = this.components.filter(comp => 
+    else if(compname!=null) {
+
+        component = this.components.filter(comp => 
             comp.name == compname)[0];
 
-        console.log(component.rendered);
-        var all = component.rendered.getElementsByTagName("*");
+        if(root == null)
+            root = startroot;
     }
 
-    for(var i=0;i<all.length;i++) {
+    //Resolve the model
+    if(root == this.root) {
+        model = this.components.filter(comp => 
+            comp.name == 'comp-app')[0].model;
+    }
+    else if(component!=null) {
+        model = component.model;
+    }
 
-        if(all[i].getAttribute('comp') != null) {
-            postupdate.push(all[i].getAttribute('comp'));
-        }
-        else if(all[i].getAttribute('in') != null) {
-            data_attrib = all[i].getAttribute('in');
-            all[i].setAttribute("value", this.iterateStaticModel(component.model, data_attrib));
-        }
-        else if(all[i].getAttribute('out') != null) {
+    root.childNodes.forEach(element => {
+        if(typeof element.getAttribute === 'function') {
 
-            data_attrib = all[i].getAttribute('out');
+            if(element.getAttribute('ap-elem')!=null) {
+                var ap_elem = parseInt(element.getAttribute('ap-elem').toString());
+                element.parentNode.replaceChild(this.ap_elems[ap_elem], element);
+                this.updateApp(root, compname);
+            }
 
-            var modelvalue = this.iterateStaticModel(component.model, data_attrib);
-
-            console.log(component.model);
-            console.log(data_attrib);
-            console.log(modelvalue);
-
-            if(!Array.isArray(modelvalue)) {
-                var inner_html = this.renderTemplate(all[i].innerHTML,
-                    this.iterateStaticModel(component.model, data_attrib));
-    
-                if(inner_html === all[i].innerHTML) {
-                    all[i].innerHTML = 
-                    this.iterateStaticModel(component.model, data_attrib);
+            //plug-in attributes from model
+            if(element.getAttribute('no-show')!=null) {
+                var attr = element.getAttribute('no-show').toString();
+                if(attr[0] == '{' && attr[attr.length - 1] == '}') {
+                    attr = attr.substring(1, attr.length - 1);
+                    var elem_copy = element.cloneNode(true);
+                    this.ap_elems.push(elem_copy);
+                    element.setAttribute('ap-elem', this.ap_elems.length -1);
+                    element.setAttribute('no-show', this.iterateStaticModel(model, attr))
                 }
-                else {
-                    all[i].innerHTML = inner_html;
+            }
+
+            if(element.getAttribute('no-show')!=null) {
+                if(element.getAttribute('no-show') == 'true') {
+                    
+                    var placeholder = document.createElement('div');
+                    if(element.getAttribute('ap-elem')!=null) {
+                        var ap_elem = parseInt(element.getAttribute('ap-elem').toString());
+                        placeholder.setAttribute('ap-elem', ap_elem);
+                        element.parentNode.replaceChild(placeholder, element);
+                    }
+                }
+            }
+
+            if(element.getAttribute('comp')!=null) {
+                this.updateApp(element, element.getAttribute('comp'));
+            }
+            else if(component!=null) {
+
+                this.updateApp(element, component.name);
+
+                if(element.getAttribute('in') != null) {
+
+                    data_attrib = element.getAttribute('in');
+
+                    element.setAttribute("value", this.iterateStaticModel(model, data_attrib));
+                    element.value= this.iterateStaticModel(model, data_attrib);
+
+                }
+                else if(element.getAttribute('out') != null) {
+
+                    data_attrib = element.getAttribute('out');
+        
+                    var modelvalue = this.iterateStaticModel(component.model, data_attrib);
+        
+                    if(!Array.isArray(modelvalue)) {
+                        var inner_html = this.renderTemplate(element.innerHTML,
+                            this.iterateStaticModel(component.model, data_attrib));
+            
+                        if(inner_html === element.innerHTML) {
+                            element.innerHTML = 
+                            this.iterateStaticModel(component.model, data_attrib);
+                        }
+                        else {
+                            element.innerHTML = inner_html;
+                        }
+                    }
+                    else {
+        
+                        //1. Get the child template from looptemplates
+                        var ltid = parseInt(element.getAttribute('ltid'));
+                        var child = this.looptemplates[ltid];
+        
+                        //2. Remove the existing children
+                        element.innerHTML = '';
+                        
+                        //3. Loop over the model elements and create children
+                        modelvalue.forEach(modelelem => {
+                            var curnode = child.cloneNode(true);
+                            //4. Render the child
+                            curnode.innerHTML = this.renderTemplate(curnode.innerHTML, modelelem);
+                            
+                            //console.log(curnode);
+
+                            var curnode_elems = curnode.getElementsByTagName("*");
+                            curnode_elems = Array.prototype.slice.call(curnode_elems);
+
+                            if(curnode_elems.length == 0) {
+                                curnode_elems = [curnode];
+                            }
+                            else {
+                                curnode_elems.push(curnode);
+                            }
+
+                            _element = modelelem;
+                            for(var k=0;k<curnode_elems.length;k++) {
+                                //Event Binding - click
+                                if(curnode_elems[k].getAttribute('click') != null) {
+                                    var clickhandler = curnode_elems[k].getAttribute('click');
+                                    this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
+                                                        data: component.model,
+                                                        my: _element,
+                                                        type: "click"
+                                                    });
+                                    curnode_elems[k].setAttribute("clickevt", this.events.length - 1);
+}
+                            }
+
+                            element.appendChild(curnode);
+                        });
+                        
+                    }
                 }
             }
             else {
-
-                //1. Get the child template from looptemplates
-                var ltid = parseInt(all[i].getAttribute('ltid'));
-                var child = this.looptemplates[ltid];
-
-                //2. Remove the existing children
-                all[i].innerHTML = '';
-
-                //3. Loop over the model elements and create children
-                modelvalue.forEach(element => {
-                    var curnode = child.cloneNode(true);
-                    //4. Render the child
-                    curnode.innerHTML = this.renderTemplate(curnode.innerHTML, element);
-                    
-                    var curnode_elems = curnode.getElementsByTagName("*");
-                    if(curnode_elems.length == 0) {
-                        curnode_elems = [curnode];
-                    }
-
-                    _element = element;
-                    curnode_elems.forEach(element => {
-                        //Event Binding - click
-                        if(element.getAttribute('click') != null) {
-                            var clickhandler = element.getAttribute('click');
-                            this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
-                                                data: component.model,
-                                                my: _element,
-                                                type: "click"
-                                            });
-                            element.setAttribute("clickevt", this.events.length - 1);
-                        }
-                    });
-
-                    all[i].appendChild(curnode);
-                });
+                console.err('Component Updation failed for ' + element);
             }
         }
-
-        postupdate.forEach(element => {
-            console.log(element);
-            this.updateApp(element);
-        });
-    }
+    });
 }
 
 //Iterate a model object and return the element pointed to by "path"
@@ -273,12 +332,7 @@ App.prototype.renderComponent = function(comp_name) {
                 var children = all[i].getElementsByTagName("*");
                 var child = children[0];
                 if(children.length > 1) {
-                    var super_child = document.createElement('div');
-                    console.log(children);
-                    children.forEach(element => {
-                        super_child.appendChild(element);
-                    });
-                    child = super_child;
+                    child.inner_html = all[i].inner_html;
                 }
 
                 //2. Copy the child template for later use (component updation)
@@ -299,18 +353,20 @@ App.prototype.renderComponent = function(comp_name) {
                     if(curnode_elems.length == 0) {
                         curnode_elems = [curnode];
                     }
-                    curnode_elems.forEach(element => {
+
+                    for(var k=0;k<curnode_elems.length;k++) {
                         //Event Binding - click
-                        if(element.getAttribute('click') != null) {
-                            var clickhandler = element.getAttribute('click');
+                        if(curnode_elems[k].getAttribute('click') != null) {
+                            var clickhandler = curnode_elems[k].getAttribute('click');
                             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                                 data: component.model,
                                                 my: _element,
                                                 type: "click"
                                             });
-                            element.setAttribute("clickevt", this.events.length - 1);
+                                            
+                            curnode_elems[k].setAttribute("clickevt", this.events.length - 1);
                         }
-                    });
+                    }
                    
                     all[i].appendChild(curnode);
                 });
@@ -320,7 +376,7 @@ App.prototype.renderComponent = function(comp_name) {
             data_attrib = all[i].getAttribute('inout'); 
 
         //Event Binding - click
-        if(all[i].getAttribute('click') != null) {
+        if(all[i].getAttribute('click') != null && all[i].getAttribute('clickevt')==null) {
             var clickhandler = all[i].getAttribute('click');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                 data: component.model,
@@ -331,7 +387,7 @@ App.prototype.renderComponent = function(comp_name) {
         }
 
         //Event Binding - change
-        if(all[i].getAttribute('change') != null) {
+        if(all[i].getAttribute('change') != null&& all[i].getAttribute('changeevt')==null) {
             var clickhandler = all[i].getAttribute('change');
             this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
                                 data: component.model,
@@ -422,16 +478,31 @@ DOMHelper.prototype.createElementFromHTML = function(html) {
 
 let app = new App();app.addComponent('comp-child', `<div>
     <ul out="arr">
-        <li click="handleChildClick">{name}</li>
+        <li click="handleChildClick">
+            {name}
+        </li>
     </ul>
+    <input in="new_name" type="text"/>
+    <button click="addNewName">Create</button>
 </div>`, {arr:[
             {name: "XYZ"},
             {name: "123"}
-        ],handleChildClick: function(_this, my){
+        ],new_name:"",handleChildClick: function(_this, my){
         console.log(my.name);
-    },}, false);app.addComponent('comp-app', `<div>
+    },addNewName: function(_this, my){
+        _this.arr.push({name: _this.new_name});
+        _this.new_name = "";
+    },}, false);app.addComponent('comp-app', `<div>  
+
+    <div no-show="{loaded}">
+        <p>Progress</p>
+    </div>
+
     <ul out="users">
-        <li click="handleElemClick">{fname} {lname}</li>
+        <li click="handleElemClick">
+            <span>{fname}</span>
+            <p>{lname}</p>
+        </li>
     </ul>
 
     <input in="fname" type="text"/>
@@ -440,13 +511,18 @@ let app = new App();app.addComponent('comp-child', `<div>
 
     <comp-child></comp-child>
 </div>`, {users:[{
-            fname: "ABC", lname: "DEF"    
-        }],fname:"",lname:"",handleAdd: function(_this, my){
+            fname: "ABC", lname: "DEF" 
+        }],fname:"",lname:"",loaded:true,handleAdd: function(_this, my){
         _this.users.push({
             fname: _this.fname,
             lname: _this.lname
         });
+        _this.fname = ""; _this.lname = "";
     },handleElemClick: function(_this, my){
-        console.log(_this);
-        alert(my.fname + ' ' + my.lname);
+        _this.loaded = false;
+        setTimeout(() => {
+            _this.loaded = true;
+            //alert(my.fname + ' ' + my.lname);
+            app.updateApp();
+        }, 1000);
     },}, true);app.renderComponent('comp-app');

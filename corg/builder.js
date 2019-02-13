@@ -6,6 +6,7 @@ module.exports = {
 
     initStatic: function() {
         fs.copyFileSync('src/index.html', 'public/index.html');
+        fs.copyFileSync('src/main.css', 'public/main.css');
         fs.copyFileSync('corg/main.js', 'public/main.js');
     },
 

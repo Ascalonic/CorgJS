@@ -1,6 +1,14 @@
-<div>
+<div>  
+
+    <div no-show="{loaded}">
+        <p>Progress</p>
+    </div>
+
     <ul out="users">
-        <li click="handleElemClick">{fname} {lname}</li>
+        <li click="handleElemClick">
+            <span>{fname}</span>
+            <p>{lname}</p>
+        </li>
     </ul>
 
     <input in="fname" type="text"/>
