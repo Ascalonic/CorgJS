@@ -81,6 +81,30 @@ will render as:
 
 By plugging in the model object
 
+You can render iterative components easier than ever:
+
+```
+<ul out="products">
+  <li>{name}</li>
+</ul>
+```
+
+will render the following model object:
+
+```
+[
+  { name: "Shoes" },
+  { name: "Laptop" }
+]
+```
+
+as:
+
+```
+* Shoes
+* Laptop
+```
+
 ## Source Code
 
 Backbone of Corg are the two following files:
