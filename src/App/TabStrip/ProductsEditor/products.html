@@ -1,0 +1,56 @@
+<div>
+    <div class="container centered" style="flex-flow: column;">
+        <div class="row centered">
+            <h4>Products</h4>
+        </div>
+        <div class="row centered" no-show="{noProducts}">
+            <div class="card" id="product-list" style="max-height: 300px; overflow-y: auto;">
+                <div out="products">
+                    <div class="row card-section">
+                        <div class="row">
+                            <p>{name}</p>
+                        </div>
+                        <button class="btn-outline" click="handleEditProduct" 
+                        style="top: 6px; position:relative;">Edit</button>
+                    </div>
+                </div>
+            </div>
+        </div><br/><br/>
+
+        <div class="row centered" no-show="{subtabstate[0]}">
+            <div class="card" style="max-height: 50px; padding-top: 10px;">
+                <div class="row">
+                    <div class="col-10">
+                        <input class="txt-underlined" in="productName"/>
+                    </div>
+                    <div class="col-2" style="padding-left: 10px;">
+                        <button class="btn-primary" click="handleAddProduct">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row centered" no-show="{subtabstate[1]}">
+            <div class="card" style="max-height: 100px; padding-top: 10px;">
+                <div class="row card-section" style="padding-bottom: 10px;">
+                    <div style="width: 100%;">
+                        <input class="txt-underlined" in="modProductName"/>
+                    </div>
+                </div>
+                <div class="row card-section" style= "padding-top: 10px; padding-bottom: 10px;">
+                    <button class="btn-primary" click="handleModProductName">
+                        Modify
+                    </button>
+                    <button class="btn-outline" style="margin-left: 10px;" click="handleRemoveProduct">
+                        Remove
+                    </button>
+                    <button class="btn-outline" style="margin-left: 10px; float: right;"
+                    click="handleCancelProductMod">Cancel</button>
+                </div>
+            </div>
+        </div>
+        <div class="row alert-error centered" no-show="{alerts.noErrors}">
+            <p out="alerts.errMessage"></p>
+        </div>
+    </div>
+</div>
+

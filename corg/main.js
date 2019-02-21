@@ -1,5 +1,23 @@
 ///////////////////////////// APP /////////////////////////////
 
+var x = null;
+var y = null;
+document.addEventListener('mousemove', onMouseUpdate, false);
+
+function onMouseUpdate(e) {
+    x = e.pageX;
+    y = e.pageY;
+}
+
+function getMouseX() {
+    return x;
+}
+
+function getMouseY() {
+    return y;
+}
+////////
+
 function App() {
     this.init();
 }
@@ -19,6 +37,7 @@ App.prototype.init = function() {
     this.postevents = []; //to store event unbinding functions
     this.looptemplates = []; //to store templates for updating array elements
     this.ap_elems = []; //to store the Attribute Plugged Elements (APEs)
+    this.comp_params = []; //to store the component parameters (attribs)
 }
 
 //clear the app root and re-render all
@@ -28,6 +47,7 @@ App.prototype.reRender = function() {
     this.events = [];
     this.looptemplates = [];
     this.ap_elems = [];
+    this.comp_params = [];
 
     for(var i=0;i<this.postevents.length;i++) {
         this.postevents[i].action(this.postevents[i].data);
@@ -39,6 +59,8 @@ App.prototype.reRender = function() {
 
 //Update the app to reflect model changes
 App.prototype.updateApp = function(startroot, compname) {
+
+    var updatequeue = []; //make the update Breadth-First
 
     var root = startroot;
     var component = null;
@@ -69,14 +91,22 @@ App.prototype.updateApp = function(startroot, compname) {
         model = component.model;
     }
 
+    if(component.model.onRefresh != null) {
+        component.model.onRefresh(component.model);
+    }
+
+    //Update the AP Elements
     root.childNodes.forEach(element => {
         if(typeof element.getAttribute === 'function') {
-
             if(element.getAttribute('ap-elem')!=null) {
                 var ap_elem = parseInt(element.getAttribute('ap-elem').toString());
                 element.parentNode.replaceChild(this.ap_elems[ap_elem], element);
-                this.updateApp(root, compname);
             }
+        }
+    });
+
+    root.childNodes.forEach(element => {
+        if(typeof element.getAttribute === 'function') {
 
             //plug-in attributes from model
             if(element.getAttribute('no-show')!=null) {
@@ -86,7 +116,7 @@ App.prototype.updateApp = function(startroot, compname) {
                     var elem_copy = element.cloneNode(true);
                     this.ap_elems.push(elem_copy);
                     element.setAttribute('ap-elem', this.ap_elems.length -1);
-                    element.setAttribute('no-show', this.iterateStaticModel(model, attr))
+                    element.setAttribute('no-show', this.iterateStaticModel(component.model, attr))
                 }
             }
 
@@ -103,9 +133,23 @@ App.prototype.updateApp = function(startroot, compname) {
             }
 
             if(element.getAttribute('comp')!=null) {
-                this.updateApp(element, element.getAttribute('comp'));
+
+                updatequeue.push({element: element, compname: element.getAttribute('comp')});
+
+                //this.updateApp(element, element.getAttribute('comp'));
             }
             else if(component!=null) {
+
+                //Check for any component param update
+                var component_params = this.comp_params.filter(comp => 
+                    comp.comp == component.name)[0];
+
+                if(component_params!=null) {
+                    component.model.props[component_params.param_name] = 
+                        this.iterateStaticModel(component_params.model, component_params.ptr);
+
+                }
+                //////
 
                 this.updateApp(element, component.name);
 
@@ -149,8 +193,6 @@ App.prototype.updateApp = function(startroot, compname) {
                             var curnode = child.cloneNode(true);
                             //4. Render the child
                             curnode.innerHTML = this.renderTemplate(curnode.innerHTML, modelelem);
-                            
-                            //console.log(curnode);
 
                             var curnode_elems = curnode.getElementsByTagName("*");
                             curnode_elems = Array.prototype.slice.call(curnode_elems);
@@ -185,8 +227,17 @@ App.prototype.updateApp = function(startroot, compname) {
             else {
                 console.err('Component Updation failed for ' + element);
             }
+
+            updatequeue.forEach(update => {
+                this.updateApp(update.element, update.compname);
+            });
         }
     });
+
+    if(component.model.refreshFinished != null) {
+        component.model.refreshFinished(component.model);
+    }
+
 }
 
 //Iterate a model object and return the element pointed to by "path"
@@ -194,9 +245,29 @@ App.prototype.iterateStaticModel = function(model, path) {
 
     var stack = path.split('.');  
     while(stack.length>1){
-        model = model[stack.shift()];
+        if(stack.toString().endsWith("]")) {
+            var index = stack.toString().split('[')[1];
+            index = index.substring(0, index.length - 1);
+            index = parseInt(index);
+
+            model = model[stack.toString().split('[')[0]];
+            model =  model[index];
+        }
+        else {
+            model = model[stack.shift()];
+        }
     }
-    return model[stack.shift()];
+
+    if(stack.toString().endsWith("]")) {
+        var index = stack.toString().split('[')[1];
+        index = index.substring(0, index.length - 1);
+        index = parseInt(index);
+        model = model[stack.toString().split('[')[0]];
+        return model[index];
+    }
+    else {
+        return model[stack.shift()];
+    }
 }
 
 //Iterate object and update a node
@@ -295,18 +366,17 @@ App.prototype.renderComponent = function(comp_name) {
 
             //Bind onchange event to the element to reflect in model
             this.events.push({ handler: function(_this, my, value) {
-                                            _this.update(_this.model, value, _this.path);
-                                        },
-                                data: {
-                                    path: data_attrib,
-                                    model: component.model,
-                                    update: this.updateObject
-                                },
-                                my: null,
-                                type: "change"
-                            });
+                    _this.update(_this.model, value, _this.path);
+                },
+                data: {
+                    path: data_attrib,
+                    model: component.model,
+                    update: this.updateObject
+                },
+                my: null,
+                type: "change"
+            });
             all[i].setAttribute("changeevt", this.events.length - 1);
-
         }
         if(all[i].getAttribute('out') != null) { 
 
@@ -396,12 +466,49 @@ App.prototype.renderComponent = function(comp_name) {
                             });
             all[i].setAttribute("changeevt", this.events.length - 1);
         }
+
+        //Event Binding - Keydown
+        if(all[i].getAttribute('keydown') != null&& all[i].getAttribute('keydownevt')==null) {
+            var clickhandler = all[i].getAttribute('keydown');
+            this.events.push({ handler: this.iterateStaticModel(component.model, clickhandler),
+                                data: component.model,
+                                my: null,
+                                type: "keydown"
+                            });
+            all[i].setAttribute("keydownevt", this.events.length - 1);
+        }
     }
  
     var child_comps = comp_html.getElementsByTagName("*");
     let dom_helper = new DOMHelper();
     for(var i=0;i<child_comps.length;i++) {
         if(child_comps[i].tagName.toLowerCase().indexOf('comp-') == 0) {
+
+            //Get all attribs of the tag and plug it into the model
+            var child_component = this.components.filter(comp => 
+                comp.name == child_comps[i].tagName.toLowerCase())[0];
+
+            var attrs = new DOMHelper().getAllAttributes(child_comps[i]);
+
+            attrs.forEach(attr => {
+                if(child_component.model.props == null) child_component.model.props = {};
+                if(attr.value[0] == '{' && attr.value[attr.value.length - 1] == '}') {
+                    //resolve value from current component's model
+                    var attr_model_ptr = attr.value.substring(1, attr.value.length - 1);
+                    
+                    this.comp_params.push({comp: child_comps[i].tagName.toLowerCase(), 
+                        model: component.model, 
+                        ptr: attr_model_ptr,
+                        param_name: attr.name});
+
+                    child_component.model.props[attr.name] = 
+                    this.iterateStaticModel(component.model, attr_model_ptr);
+                }
+                else {
+                    child_component.model.props[attr.name] = attr.value;
+                }
+            });
+            ////////
 
             var new_child = dom_helper.createElementFromHTML
             (this.renderComponent(child_comps[i].tagName.toLowerCase()));
@@ -435,6 +542,18 @@ App.prototype.renderComponent = function(comp_name) {
                     _this.events[parseInt(event.srcElement.getAttribute("changeevt"))].my,
                     event.srcElement.value
                 );
+                document.elementFromPoint(getMouseX(), getMouseY()).click();
+                _this.updateApp();
+            }
+        };
+
+        var keydownhandlerfn = function(event) {
+            if(event.srcElement.getAttribute("keydownevt") != null) {
+                _this.events[parseInt(event.srcElement.getAttribute("keydownevt"))].handler(
+                    _this.events[parseInt(event.srcElement.getAttribute("keydownevt"))].data,
+                    _this.events[parseInt(event.srcElement.getAttribute("keydownevt"))].my,
+                    event.srcElement.value
+                );
                 _this.updateApp();
             }
         };
@@ -453,8 +572,17 @@ App.prototype.renderComponent = function(comp_name) {
             data: changehandlerfn
         });
 
+        this.postevents.push({
+            action: function(data) {
+                document.body.removeEventListener('keydown', data);
+            },
+            data: keydownhandlerfn
+        });
+        
+
         document.body.addEventListener('click', clickhandlerfn);
         document.body.addEventListener('change', changehandlerfn);
+        document.body.addEventListener('keydown', keydownhandlerfn);
 
         this.root.innerHTML = component.html;
 
@@ -474,6 +602,15 @@ DOMHelper.prototype.createElementFromHTML = function(html) {
         return null;
     div.innerHTML = html.trim();
     return div.firstChild;
+}
+
+DOMHelper.prototype.getAllAttributes = function(el) {
+    var ret = [];
+    for(var att, i=0, atts = el.attributes, n = atts.length; i<n; i++) {
+        att = atts[i];
+        ret.push({name: att.nodeName, value: att.nodeValue.toString()});
+    }
+    return ret;
 }
 
 let app = new App();

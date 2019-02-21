@@ -1,28 +1,25 @@
 class App {
     constructor() {
-        this.users = [{
-            fname: "ABC", lname: "DEF" 
-        }];
-        this.fname = "";
-        this.lname = "";
+        this.tabStat = [false, true];
+        this.tabTo = 1;
+        this.hideSideNav = true;
 
-        this.loaded = true;
+        this.searchq = "";
     }
 
-    handleAdd() {
-        this.users.push({
-            fname: this.fname,
-            lname: this.lname
-        });
-        this.fname = ""; this.lname = "";
+    changeTab() {
+        this.showSideNav(this);
+        for(var i=0;i<this.tabStat.length;i++) {
+            if(i == this.tabTo) this.tabStat[i] = false;
+            else this.tabStat[i] = true;
+        }
     }
 
-    handleElemClick() {
-        this.loaded = false;
-        setTimeout(() => {
-            this.loaded = true;
-            //alert(my.fname + ' ' + my.lname);
-            app.updateApp();
-        }, 1000);
+    showSideNav() {
+        this.hideSideNav = false;
+    }
+
+    closeSideNav() {
+        this.hideSideNav = true;
     }
 }

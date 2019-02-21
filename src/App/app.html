@@ -1,19 +1,12 @@
-<div>  
-
-    <div no-show="{loaded}">
-        <p>Progress</p>
+<div>
+    <div class="sidenav-overlay faceIn" id="sidenav-overlay" no-show="{hideSideNav}" click="closeSideNav">
     </div>
-
-    <ul out="users">
-        <li click="handleElemClick">
-            <span>{fname}</span>
-            <p>{lname}</p>
-        </li>
-    </ul>
-
-    <input in="fname" type="text"/>
-    <input in="lname" type="text"/>
-    <button click="handleAdd">Add</button>
-
-    <comp-child></comp-child>
+    <div class="sidenav" no-show="{hideSideNav}">
+        <div class="sidenav-item" click="changeTab">Item 1</div>
+        <div class="sidenav-item">Item 2</div>
+    </div>
+    <comp-navbar searchq="{searchq}"></comp-navbar>
+    <div class="container" style="top: 60px; position:relative;">
+        <comp-tabstrip tabstat="{tabStat}"></comp-tabstrip>
+    </div>
 </div>
