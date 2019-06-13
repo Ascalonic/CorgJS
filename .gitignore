@@ -1,1 +1,5 @@
+#Ignore the node module directory
 node_modules/
+
+#webpack output directory
+dist/
